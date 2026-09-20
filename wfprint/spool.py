@@ -25,11 +25,18 @@ class Spool:
     def abort(self, handle: int) -> None:
         self.close(handle)
 
+    def list_printers(self) -> list:
+        raise NotImplementedError
+
 
 class FakeSpool(Spool):
-    def __init__(self):
+    def __init__(self, names=None):
         self.jobs: dict = {}
         self._open: set = set()
+        self._names = list(names) if names else []
+
+    def list_printers(self) -> list:
+        return list(self._names)
 
     def open(self, printer_name: str) -> int:
         h = abs(hash(printer_name)) % 100000 + 1
@@ -62,6 +69,12 @@ class _DOCINFO(ctypes.Structure):
                 ("pDatatype", wintypes.LPWSTR)]
 
 
+class _PRINTER_INFO_4(ctypes.Structure):
+    _fields_ = [("pPrinterName", wintypes.LPWSTR),
+                ("pServerName", wintypes.LPWSTR),
+                ("Attributes", wintypes.DWORD)]
+
+
 class WinSpool(Spool):
     def __init__(self):
         self._dll = ctypes.WinDLL("winspool.drv")
@@ -77,6 +90,31 @@ class WinSpool(Spool):
         self._dll.AbortPrinter.restype = wintypes.BOOL
         self._dll.ClosePrinter.argtypes = [wintypes.HANDLE]
         self._dll.ClosePrinter.restype = wintypes.BOOL
+        self._dll.EnumPrintersW.argtypes = [wintypes.DWORD, wintypes.LPWSTR, wintypes.DWORD,
+                                            ctypes.c_void_p, wintypes.DWORD,
+                                            ctypes.POINTER(wintypes.DWORD),
+                                            ctypes.POINTER(wintypes.DWORD)]
+        self._dll.EnumPrintersW.restype = wintypes.BOOL
+
+    def list_printers(self) -> list:
+        flags = 0x00000002 | 0x00000004
+        needed = wintypes.DWORD(0)
+        returned = wintypes.DWORD(0)
+        self._dll.EnumPrintersW(flags, None, 4, None, 0, ctypes.byref(needed), ctypes.byref(returned))
+        if needed.value == 0:
+            return []
+        buf = ctypes.create_string_buffer(needed.value)
+        if not self._dll.EnumPrintersW(flags, None, 4, buf, needed.value,
+                                       ctypes.byref(needed), ctypes.byref(returned)):
+            raise SpoolError("EnumPrinters gagal")
+        out = []
+        addr = ctypes.addressof(buf)
+        size = ctypes.sizeof(_PRINTER_INFO_4)
+        for i in range(int(returned.value)):
+            info = _PRINTER_INFO_4.from_address(addr + i * size)
+            if info.pPrinterName:
+                out.append(info.pPrinterName)
+        return out
 
     def open(self, printer_name: str) -> int:
         h = wintypes.HANDLE()

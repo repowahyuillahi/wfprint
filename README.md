@@ -8,7 +8,15 @@ Terinspirasi kemudahan setup [PrinterShare](https://printershare.net/index.php),
 
 ## Cara pakai
 
-Download `dist/wfprint.exe`, atau jalankan dari source (Python 3.12, stdlib saja):
+Download `dist/wfprint.exe`, atau jalankan dari source (Python 3.12, stdlib saja).
+
+**Mode jendela (GUI):**
+
+```powershell
+wfprint.exe --gui
+```
+
+Tab Server: centang printer yang di-share (port otomatis 9100, 9101, ...), Start/Stop, status + log. Tab Client: 🔍 Cari server otomatis, pilih printer, pasang, test page. Menu File ada autostart Windows; `--gui --minimized` buka minimized + auto-start.
 
 **1. Di PC yang colok printer USB (server):**
 
@@ -46,10 +54,11 @@ Membuka firewall inbound khusus subnet LAN + autostart saat login.
 
 ## Cara kerja
 
-1. Client File > Print → driver lokal me-render PCL/PS → spooler client kirim byte mentah via TCP ke server:9100.
-2. Server menerima sampai FIN (timeout 30 dtk), lalu `OpenPrinter → StartDocPrinter → WritePrinter` per chunk 64KB → `EndDocPrinter` ke printer USB. Streaming, tanpa menampung satu job utuh di RAM.
-3. Satu job aktif per printer (FIFO, antre ketat). Job kosong ditolak tanpa menyentuh spooler; printer offline/USB dicabut → job ditolak, koneksi ditutup, server tetap jalan.
-4. Satu printer = satu port (9100, 9101, ...).
+1. Client klik 🔍 Cari server → broadcast UDP 9107, server jawab daftar printer + portnya → pilih → Pasang. Atau manual:
+2. Client File > Print → driver lokal me-render PCL/PS → spooler client kirim byte mentah via TCP ke server:9100.
+3. Server menerima streaming per chunk 64KB sampai FIN (timeout 30 dtk) lalu tulis via `OpenPrinter → StartDocPrinter → WritePrinter` → `EndDocPrinter` ke printer USB. Tanpa menampung satu job utuh di RAM.
+4. Satu job aktif per printer (FIFO, antre ketat). Job kosong ditolak tanpa menyentuh spooler; printer offline/USB dicabut → job ditolak, koneksi ditutup, server tetap jalan.
+5. Satu printer = satu port (9100, 9101, ...).
 
 ## Batasan
 
@@ -60,11 +69,11 @@ Membuka firewall inbound khusus subnet LAN + autostart saat login.
 ## Pengembangan
 
 ```powershell
-python -m unittest discover -s tests -v   # 15 test, stdlib unittest
+python -m unittest discover -s tests -v   # 30 test, stdlib unittest
 python -m PyInstaller --onefile --console --name wfprint wfprint.py  # build exe
 ```
 
-Struktur: `wfprint.py` (CLI dual-mode) · `wfprint/server.py` (TCP→spooler) · `wfprint/spool.py` (ctypes `winspool.drv`) · `wfprint/client.py` (probe + setup PowerShell) · `wfprint/config.py` · `tests/` · `docs/superpowers/` (spec + plan).
+Struktur: `wfprint.py` (CLI dual-mode) · `wfprint/gui.py` (tkinter) · `wfprint/server.py` (TCP→spooler + discovery responder) · `wfprint/spool.py` (ctypes `winspool.drv` + EnumPrinters) · `wfprint/client.py` (probe + setup PowerShell) · `wfprint/discovery.py` (UDP broadcast) · `wfprint/autostart.py` (registry Run) · `wfprint/config.py` · `tests/` · `docs/superpowers/` (spec + plan).
 
 ## Status
 

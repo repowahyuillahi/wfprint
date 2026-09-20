@@ -32,3 +32,7 @@ def apply_cli(saved: dict, port: int, printer: str) -> dict:
     if printer:
         m[str(port)] = printer
     return m
+
+
+def build_multi_mapping(names: list, base: int = DEFAULT_PORT) -> dict:
+    return {int(base) + i: n for i, n in enumerate(names)}

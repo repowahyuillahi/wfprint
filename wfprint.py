@@ -9,6 +9,8 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--client", action="store_true")
     ap.add_argument("--setup", action="store_true")
     ap.add_argument("--test-page", action="store_true")
+    ap.add_argument("--gui", action="store_true")
+    ap.add_argument("--minimized", action="store_true")
     ap.add_argument("--bind", default="127.0.0.1")
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=9100)
@@ -31,6 +33,10 @@ def main(argv=None) -> int:
                         format="%(asctime)s %(levelname)s %(name)s %(message)s",
                         handlers=[logging.FileHandler(_log_file(), encoding="utf-8"),
                                   logging.StreamHandler()])
+    if ns.gui:
+        from wfprint import gui
+        gui.run(start_minimized=ns.minimized)
+        return 0
     if ns.server:
         from wfprint import config as cfg
         from wfprint import server

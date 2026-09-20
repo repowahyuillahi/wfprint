@@ -21,6 +21,17 @@ class FakeSpoolTest(unittest.TestCase):
         with self.assertRaises(spool.SpoolError):
             s.write(h, b"x")
 
+    def test_fake_list_printers(self):
+        s = spool.FakeSpool(names=["HP A", "Epson B"])
+        self.assertEqual(s.list_printers(), ["HP A", "Epson B"])
+
+
+class WinSpoolListTest(unittest.TestCase):
+    def test_list_returns_name_list(self):
+        names = spool.WinSpool().list_printers()
+        self.assertIsInstance(names, list)
+        self.assertTrue(all(isinstance(n, str) and n for n in names))
+
 
 if __name__ == "__main__":
     unittest.main()

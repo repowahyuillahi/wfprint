@@ -122,6 +122,10 @@ def serve(mapping, bind_ip: str, spool_factory, stop_event) -> None:
         listeners.append((int(port), s))
         log.info("listen %s:%s -> %s", bind_ip, port, mapping[port])
     spool = spool_factory()
+    from wfprint import discovery
+    udp = threading.Thread(target=discovery.responder, args=(mapping, bind_ip, stop_event),
+                           daemon=True)
+    udp.start()
     try:
         while not stop_event.is_set():
             for port, s in listeners:
